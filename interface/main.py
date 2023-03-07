@@ -62,9 +62,11 @@ class FolderSelector(QWidget):
                     padding: 6px;
                     color: white;
                 }
+
                 QPushButton:hover {
                     background-color: #3CCCDB;
                 }
+
                 QPushButton:pressed {
                     background-color: #3CCCDB;
                     border-style: inset;
