@@ -11,7 +11,7 @@ img = load_img(path)
 data = img_to_array(img)
 
 n = 9
-augmented_images = resize(data, (1,1), (1,1), n)
+augmented_images = rotate(data, (0,0.25), n, 'constant')
 
 # display the images
 for i in range(n):

@@ -1,175 +1,127 @@
 from random import randint
 import numpy
 from keras import layers
-from keras.layers import RandomCrop, RandomContrast
+from keras.layers import RandomCrop, RandomContrast, RandomTranslation, RandomBrightness, RandomRotation, RandomFlip, RandomZoom
 from keras.preprocessing.image import ImageDataGenerator
 from numpy import expand_dims
 
-def zoom(image : numpy.ndarray, zoom_range : list, n : int) -> list[numpy.ndarray] :
+def zoom(image : numpy.ndarray, height_range : tuple, width_range : tuple, n : int, fill_mode : str = 'nearest') -> list[numpy.ndarray] :
     """
-    Zoom in and out of the image
+    Zoom in and out of the image by a random amount in the range specified by height_range and width_range
     :param image: numpy array of the image
-    :param zoom_range: list containing the zoom range, zoom_range[0] is lower bound, zoom_range[1] is upper bound
-    :param n: number of images to generate
+    :param height_range: range of the zoom height, must be a tuple, between -1 and 1
+    :param width_range: range of the zoom width, must be a tuple, between -1 and 1
+    :param n: number of images to generate ; must be greater than 0
+    :param fill_mode: fill mode for the zoom ; must be one of the following: 'constant', 'nearest', 'reflect', 'wrap' ; default is 'nearest'
     :return: list of numpy arrays of the images
     """
-    if(len(zoom_range) != 2):
-        raise ValueError("Zoom range must contain 2 values")
-    if(zoom_range[0] < 0) :
-        raise ValueError("Zoom range lower bound mist be positive")
+    assert isinstance(height_range, tuple) and len(height_range) == 2 and height_range[0] <= height_range[1] and -1 <= height_range[0] <= 1 and -1 <= height_range[1] <= 1
+    assert isinstance(width_range, tuple) and len(width_range) == 2 and width_range[0] <= width_range[1] and -1 <= width_range[0] <= 1 and -1 <= width_range[1] <= 1
+    assert isinstance(n, int) and n > 0
 
-    datagen = ImageDataGenerator(zoom_range=zoom_range)
-
-    image = expand_dims(image, 0)
-    it = datagen.flow(image, batch_size=1)
+    zoom_function = RandomZoom(height_range, width_range, fill_mode=fill_mode)
 
     augmented_images = []
     for i in range(n):
-        # generate batch of images
-        batch = it.next()
-        # convert to unsigned integers for viewing
-        image = batch[0].astype('uint8')
-        augmented_images.append(image)
-
-    return augmented_images
-
-def translate(image, tx : float, ty : float, n : int) -> list[numpy.ndarray] :
-    """
-    Translate the image
-    :param image: numpy array of the image
-    :param tx: translation in x direction
-    :param ty: translation in y direction
-    :param n: number of images to generate
-    :return: list of numpy arrays of the images
-    """
-    datagen = ImageDataGenerator(width_shift_range=tx, height_shift_range=ty)
-
-    image = expand_dims(image, 0)
-    it = datagen.flow(image, batch_size=1)
-
-    augmented_images = []
-    for i in range(n):
-        # generate batch of images
-        batch = it.next()
-        # convert to unsigned integers for viewing
-        image = batch[0].astype('uint8')
-        augmented_images.append(image)
+        augmented_images.append(zoom_function(image).numpy().astype('uint8'))
 
     return augmented_images
 
 def flip(image : numpy.ndarray, horizontal : bool, vertical : bool, n : int) -> list[numpy.ndarray] :
     """
-    Flip the image
+    Flip the image horizontally and/or vertically
     :param image: numpy array of the image
-    :param horizontal: flip horizontally
-    :param vertical: flip vertically
-    :param n: number of images to generate
+    :param horizontal: boolean, if True, flip horizontally
+    :param vertical: boolean, if True, flip vertically
+    :param n: number of images to generate ; must be greater than 0
     :return: list of numpy arrays of the images
     """
-    datagen = ImageDataGenerator(horizontal_flip=horizontal, vertical_flip=vertical)
-
-    image = expand_dims(image, 0)
-    it = datagen.flow(image, batch_size=1)
+    assert isinstance(n, int) and n > 0
+    flip_function = RandomFlip(mode='horizontal_and_vertical' if horizontal and vertical else 'horizontal' if horizontal else 'vertical')
 
     augmented_images = []
     for i in range(n):
-        # generate batch of images
-        batch = it.next()
-        # convert to unsigned integers for viewing
-        image = batch[0].astype('uint8')
-        augmented_images.append(image)
+        augmented_images.append(flip_function(image).numpy().astype('uint8'))
 
     return augmented_images
 
-def rotate(image, angle : int, n : int) -> list[numpy.ndarray] :
+def rotate( image : numpy.ndarray, angle_range : tuple,  n : int, fill_mode : str = 'nearest') -> list[numpy.ndarray] :
     """
-    Rotate the image
+    Rotate the image by a random angle in the range specified by angle_range
     :param image: numpy array of the image
-    :param angle: angle of rotation
-    :param n: number of images to generate
+    :param angle_range: range of the rotation angle, must be a tuple, between -1 and 1, represent percentage of 360 degrees
+    :param n: number of images to generate ; must be greater than 0
+    :param fill_mode: fill mode for the rotation ; must be one of the following: 'constant', 'nearest', 'reflect', 'wrap' ; default is 'nearest'
     :return: list of numpy arrays of the images
     """
-    datagen = ImageDataGenerator(rotation_range=angle)
+    assert isinstance(angle_range, tuple) and len(angle_range) == 2 and angle_range[0] <= angle_range[1] and -1 <= angle_range[0] <= 1 and -1 <= angle_range[1] <= 1
+    assert isinstance(n, int) and n > 0
 
-    image = expand_dims(image, 0)
-    it = datagen.flow(image, batch_size=1)
+    rotation_function = RandomRotation(angle_range, fill_mode=fill_mode)
 
     augmented_images = []
     for i in range(n):
-        # generate batch of images
-        batch = it.next()
-        # convert to unsigned integers for viewing
-        image = batch[0].astype('uint8')
-        augmented_images.append(image)
+        augmented_images.append(rotation_function(image).numpy().astype('uint8'))
 
     return augmented_images
 
-def brightness(image, brightness_range : list, n : int) -> list[numpy.ndarray] :
+def brightness(image : numpy.ndarray, brightness_range : tuple, n : int) -> list[numpy.ndarray] :
     """
-    Change the brightness of the image
+    Change the brightness of the image by a random amount in the range specified by brightness_range
     :param image: numpy array of the image
-    :param brightness_percentage: percentage of brightness change
-    :param n: number of images to generate
+    :param brightness_range: range of the brightness change, must be a tuple, between -1 and 1
+    :param n: number of images to generate ; must be greater than 0
     :return: list of numpy arrays of the images
     """
-    datagen = ImageDataGenerator(brightness_range=brightness_range)
+    assert isinstance(brightness_range, tuple) and len(brightness_range) == 2 and brightness_range[0] <= brightness_range[1] and -1 <= brightness_range[0] <= 1 and -1 <= brightness_range[1] <= 1
+    assert isinstance(n, int) and n > 0
 
-    image = expand_dims(image, 0)
-    it = datagen.flow(image, batch_size=1)
+    brightness_function = RandomBrightness(brightness_range)
 
     augmented_images = []
     for i in range(n):
-        # generate batch of images
-        batch = it.next()
-        # convert to unsigned integers for viewing
-        image = batch[0].astype('uint8')
-        augmented_images.append(image)
+        augmented_images.append(brightness_function(image).numpy().astype('uint8'))
 
     return augmented_images
 
-def shift(image : numpy.ndarray, width_shift_range : float, height_shift_range : float, n : int) -> list[numpy.ndarray] :
+def shift(image : numpy.ndarray, x_range : tuple, y_range : tuple, n : int, fill_mode : str = 'nearest') -> list[numpy.ndarray] :
     """
-    Shift the image
+    Shift the image in x and y direction. The shift is random and in the range specified by x_range and y_range.
     :param image: numpy array of the image
-    :param width_shift_range: range of the shift in x direction, must be between -2 and 2
-    :param height_shift_range: range of the shift in y direction, must be between -2 and 2
-    :param n: number of images to generate
-    :return: list of numpy arrays of the images
+    :param x_range: range of the shift in x direction, must be between -1 and 1
+    :param y_range: range of the shift in y direction, must be between -1 and 1
+    :param n: number of images to generate ; must be greater than 0
+    :param fill_mode: Points outside the boundaries of the input are filled according to the given mode (one of {"constant", "reflect", "wrap", "nearest"}). Default is 'nearest'.
+    :return:
     """
-    assert isinstance(width_shift_range, float) or isinstance(width_shift_range, int)
-    assert isinstance(height_shift_range, float) or isinstance(height_shift_range, int)
-    assert width_shift_range < 2 and width_shift_range > -2 # Lower bound chosen arbitrarily
-    assert height_shift_range < 2 and height_shift_range > -2 # Lower bound chosen arbitrarily
+    assert isinstance(x_range, tuple) and len(x_range)==2 and -1 <= x_range[0] <= 1 and -1 <= x_range[1] <= 1 and x_range[0] <= x_range[1]
+    assert isinstance(y_range, tuple) and len(y_range)==2 and -1 <= y_range[0] <= 1 and -1 <= y_range[1] <= 1 and y_range[0] <= y_range[1]
+    assert isinstance(n, int) and n > 0
 
-    datagen = ImageDataGenerator(width_shift_range=width_shift_range, height_shift_range=height_shift_range)
-
-    image = expand_dims(image, 0)
-    it = datagen.flow(image, batch_size=1)
+    translation = RandomTranslation(height_factor=y_range, width_factor=x_range, fill_mode=fill_mode)
 
     augmented_images = []
     for i in range(n):
-        # generate batch of images
-        batch = it.next()
-        # convert to unsigned integers for viewing
-        image = batch[0].astype('uint8')
-        augmented_images.append(image)
+        augmented_images.append(translation(image).numpy().astype('uint8'))
 
     return augmented_images
 
 def shear(image : numpy.ndarray, shear_value : float, n : int) -> list[numpy.ndarray] :
     """
-    Change the perspective of the image by providing a distortion along the x-axis and y-axis
+    Change the perspective of the image by providing a distortion along the x-axis and y-axis between [-shear_value, shear_value]
     :param image: numpy array of the image
     :param shear_value: value of the shear, must be between 0 and 360
-    :param n: number of images to generate
+    :param n: number of images to generate ; must be greater than 0
     :return: list of numpy arrays of the images
     """
-    assert isinstance(shear_value, float) or isinstance(shear_value, int)
-    assert shear_value < 360 and shear_value > 0
+    assert isinstance(shear_value, int) and 360 > shear_value > 0
+    assert isinstance(n, int) and n > 0
 
     datagen = ImageDataGenerator(shear_range=shear_value)
 
-    image = expand_dims(image, 0)
+    if len(image.shape) == 3:
+        image = expand_dims(image, 0)
+
     it = datagen.flow(image, batch_size=1)
 
     augmented_images = []
@@ -182,20 +134,22 @@ def shear(image : numpy.ndarray, shear_value : float, n : int) -> list[numpy.nda
 
     return augmented_images
 
-def channel_shift(image : numpy.ndarray, intensity : float, n : int) -> list[numpy.ndarray] :
+def channel_shift(image : numpy.ndarray, intensity : int, n : int) -> list[numpy.ndarray] :
     """
     Shift the channels of the image, each channel of an image (red, green, blue) is shifted by a random value between range [-intensity;+intensity]. The shift value is added to each pixel value in the channel, which can result in a new color tone and brightness for the image.
     :param image: numpy array of the image
     :param intensity: intensity of the shift ; must be between 0 and 200
-    :param n: number of images to generate
+    :param n: number of images to generate ; must be greater than 0
     :return: list of numpy arrays of the images
     """
-    assert isinstance(intensity, float) or isinstance(intensity, int)
-    assert intensity < 200 and intensity > 0
+    assert isinstance(intensity, int) and 200 > intensity > 0
+    assert isinstance(n, int) and n > 0
 
     datagen = ImageDataGenerator(channel_shift_range=intensity)
 
-    image = expand_dims(image, 0)
+    if len(image.shape) == 3:
+        image = expand_dims(image, 0)
+
     it = datagen.flow(image, batch_size=1)
 
     augmented_images = []
