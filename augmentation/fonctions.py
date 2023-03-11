@@ -1,13 +1,8 @@
-from random import random, randint
-
-import keras
-import tensorflow as tf
+from random import randint
 import numpy
 from keras import layers
-from keras.backend import squeeze
-from keras.layers import GaussianNoise, Conv2D
+from keras.layers import RandomCrop, RandomContrast
 from keras.preprocessing.image import ImageDataGenerator
-from matplotlib import pyplot as plt
 from numpy import expand_dims
 
 def zoom(image : numpy.ndarray, zoom_range : list, n : int) -> list[numpy.ndarray] :
@@ -213,54 +208,61 @@ def channel_shift(image : numpy.ndarray, intensity : float, n : int) -> list[num
 
     return augmented_images
 
-def custom_resize(image, width_range, height_range) -> numpy.ndarray :
-    """
-    Utility function to resize the image using a custom function
-    :param image: numpy array of the image
-    :param width_range: range of the width
-    :param height_range: range of the height
-    :return: numpy array of the image
-    """
-    func = keras.Sequential([
-        layers.Resizing(randint(width_range[0], width_range[1]), randint(height_range[0], height_range[1])),
-        layers.Rescaling(1. / 255)
-    ])
-    #The colormap is determined by two rules. If the image values are integers, they use a scale from [0, 255]. If the type is a float, it is mapped from [0.0, 1.0].
-    # When scaling, resize will covert integers to floats, but does not rescale the values. This can result in values from [0.0, 255.0] which throws the colormap out of whack.
-    # To remedy, you can either cast the values back to int or scale the values from [0.0, 1.0] using tf.keras.layers.experimental.preprocessing.Rescaling(1./255).
-
-    return func(image)
 def resize(image : numpy.ndarray, width_range : tuple, height_range : tuple, n : int) -> numpy.ndarray :
     """
     Randomly resize the image according to the width and height range provided
     :param image: numpy array of the image
-    :param width_range: range of the width
-    :param height_range: range of the height
-    :param n: number of images to generate
+    :param width_range: range of the width ; must be a tuple of 2 integers and width_range[1] >= width_range[0] > 0
+    :param height_range: range of the height ; must be a tuple of 2 integers and height_range[1] >= height_range[0] > 0
+    :param n: number of images to generate ; must be greater than 0 and an integer
     :return: list of numpy arrays of the images
     """
-    assert isinstance(width_range, tuple)
-    assert isinstance(height_range, tuple)
-    assert len(width_range) == 2
-    assert len(height_range) == 2
+    assert isinstance(width_range, tuple) and len(width_range) == 2 and width_range[1] >= width_range[0] > 0
+    assert isinstance(height_range, tuple) and len(height_range) == 2 and height_range[1] >= height_range[0] > 0
+    assert isinstance(n, int) and n > 0
 
     augmented_images = []
     for i in range(n):
-        augmented_images.append(custom_resize(image, width_range, height_range))
+        resize_function = layers.Resizing(randint(width_range[0], width_range[1]),
+                                          randint(height_range[0], height_range[1]))
+        augmented_images.append(resize_function(image).numpy().astype('uint8'))
 
     return augmented_images
 
-def scale(image):
-    pass
+def crop(image : numpy.ndarray, height : int, width : int, n : int) -> numpy.ndarray :
+    """
+    Randomly crop the image according to the width and height range provided
+    :param image: numpy array of the image
+    :param height: height of the crop ; must be greater than 0 and an integer
+    :param width: width of the crop ; must be greater than 0 and an integer
+    :param n: number of images to generate ; must be greater than 0 and an integer
+    :return: list of numpy arrays of the images
+    """
+    assert height > 0 and width > 0 and isinstance(height, int) and isinstance(width, int)
+    assert isinstance(n, int) and n > 0
 
-def blur(image):
-    pass
+    crop_function = RandomCrop(height, width)
 
-def noise(image):
-    pass
+    augmented_images = []
+    for i in range(n):
+        augmented_images.append(crop_function(image).numpy().astype('uint8'))
 
-def contrast(image):
-    pass
+    return augmented_images
 
-def crop(image : numpy.ndarray):
-    pass
+def contrast(image : numpy.ndarray, contrast_range : tuple, n : int) -> numpy.ndarray :
+    """
+    Randomly change the contrast of the image
+    :param image: numpy array of the image
+    :param contrast_range: range of the contrast, a tuple of two floats, lower bound must be greater or equal to 0
+    :param n: number of images to generate ; must be greater than 0 and an integer
+    :return: list of numpy arrays of the images
+    """
+    assert isinstance(contrast_range, tuple) and len(contrast_range) == 2 and contrast_range[0] >= 0
+    assert isinstance(n, int) and n > 0
+
+    contrast_function = RandomContrast(factor=(contrast_range[0], contrast_range[1]))
+    augmented_images = []
+    for i in range(n):
+        augmented_images.append(contrast_function(image).numpy().astype('uint8'))
+
+    return augmented_images
