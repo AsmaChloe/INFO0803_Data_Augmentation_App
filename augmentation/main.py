@@ -11,10 +11,11 @@ img = load_img(path)
 data = img_to_array(img)
 
 n = 9
-augmented_images = rotate(data, 360, n)
+augmented_images = rotate(data, (0,0.25), n, 'constant')
+
 # display the images
 for i in range(n):
-    plt.subplot(3, 3, i+1)
+    plt.subplot(3,3, i+1)
     plt.imshow(augmented_images[i])
 plt.subplots_adjust(wspace=0.5)
 plt.show()
