@@ -7,7 +7,9 @@ from PyQt5.QtCore import Qt
 from keras_preprocessing.image import load_img, img_to_array, array_to_img
 
 from augmentation import fonctions
-from interface import range_slider
+from superqt import QRangeSlider, QLabeledSlider
+from qtrangeslider.qtcompat import QtCore
+from qtrangeslider.qtcompat import QtWidgets as QtW
 
 
 class Interface(QWidget):
@@ -15,16 +17,10 @@ class Interface(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.sl = None
-        self.status_label = None
-        self.folder_path = ''
-        self.list_widget = None
-        self.transformation_selector = None
-        self.initUI()
-
-    def __init__(self):
-        super().__init__()
-
+        self.fm = None
+        self.n = None
+        self.sl1 = None
+        self.sl2 = None
         self.status_label = None
         self.folder_path = ''
         self.list_widget = None
@@ -38,7 +34,7 @@ class Interface(QWidget):
         self.setWindowIcon(QIcon('folder_icon.png'))
 
         # Changer la couleur de fond
-        self.setStyleSheet("background-color: #A4A6D5;")
+        # self.setStyleSheet("background-color: #A4A6D5;")
 
         # Ajout d'une liste
         self.list_widget = QListWidget(self)
@@ -153,7 +149,13 @@ class Interface(QWidget):
         for child in self.children():
             if isinstance(child, QLabel) and child.text() != "Files in selected folder:":
                 child.deleteLater()
-            if isinstance(child, QPushButton) and child.text() == "Enregistrer":
+            if isinstance(child, QPushButton) and child.text() not in ["Modifier", "Tout cocher"]:
+                child.deleteLater()
+            if isinstance(child, QRangeSlider):
+                child.deleteLater()
+            if isinstance(child, QLineEdit):
+                child.deleteLater()
+            if isinstance(child, QComboBox) and child != self.transformation_selector:
                 child.deleteLater()
 
     def on_Index_changed(self):
@@ -197,7 +199,7 @@ class Interface(QWidget):
             img = load_img(path)
             # conversion en numpy array
             data = img_to_array(img)
-            liste = fonctions.zoom(image=data, height_range=(-1, 1), width_range=(-1, 1), n=2, fill_mode='constant')
+            liste = fonctions.zoom(image=data, height_range=(self.sl1.value()[0]/50-1, self.sl1.value()[0]/50-1), width_range=(self.sl1.value()[1]/50-1, self.sl1.value()[1]/50-1), n=int(self.n.text()), fill_mode=self.fm.currentText())
             for j in liste:
                 zoomed_images.append(j)
 
@@ -247,34 +249,70 @@ class Interface(QWidget):
 
     def on_Zoom_index(self):
 
-        # Créer un QLabel pour afficher le texte "Zoom Level :"
-        zoom_label = QLabel("Height_range :", self)
-        zoom_label.setGeometry(10, 400, 80, 30)
+        # HEIGHT RANGE SLIDER
 
-        slider = range_slider.RangeSlider(Qt.Horizontal)
-        slider.setMinimumHeight(30)
-        slider.setMinimum(0)
-        slider.setMaximum(255)
-        slider.setLow(15)
-        slider.setHigh(35)
-        slider.setGeometry(100, 400, 200, 30)
-        slider.sliderMoved.connect(self.update_value_label)
-        # QtCore.QObject.connect(slider, QtCore.SIGNAL('sliderMoved(int)'), echo)
-        slider.show()
-        slider.raise_()
+        label1 = QLabel("Height_range :", self)
+        label1.setGeometry(10, 400, 80, 30)
+
+        self.sl1 = QRangeSlider(QtCore.Qt.Horizontal, self)
+        self.sl1.setValue((33, 66))
+        self.sl1.setGeometry(10, 450, 150, 30)
 
         # Ajouter un QLabel pour afficher la valeur actuelle du slider
-        value_label = QLabel(f"{self.sl.value()}", self)
-        value_label.setGeometry(100, 400, 50, 30)
-        value_label.setStyleSheet("font-size: 14px;")
+        value_label1 = QLabel(f"{self.sl1.value()}", self)
+        value_label1.setGeometry(100, 400, 120, 30)
+        value_label1.setStyleSheet("font-size: 14px;")
 
         # Connecter le signal valueChanged du slider avec la fonction update_value_label
-        self.sl.valueChanged.connect(lambda: self.update_value_label(value_label))
+        self.sl1.valueChanged.connect(lambda: self.update_value_label1(value_label1))
+
+        # WIDTH RANGE SLIDER
+
+        label2 = QLabel("Width_range :", self)
+        label2.setGeometry(200, 400, 80, 30)
+
+        self.sl2 = QRangeSlider(QtCore.Qt.Horizontal, self)
+        self.sl2.setValue((33, 66))
+        self.sl2.setGeometry(190, 450, 150, 30)
+
+        # Ajouter un QLabel pour afficher la valeur actuelle du slider
+        value_label2 = QLabel(f"{self.sl2.value()}", self)
+        value_label2.setGeometry(290, 400, 120, 30)
+        value_label2.setStyleSheet("font-size: 14px;")
+
+        # Connecter le signal valueChanged du slider avec la fonction update_value_label
+        self.sl2.valueChanged.connect(lambda: self.update_value_label2(value_label2))
+
+        # N QLINE EDIT
+
+        label3 = QLabel("Number of \n  images :", self)
+        label3.setGeometry(370, 390, 50, 60)
+
+        self.n = QLineEdit(self)
+        self.n.setMaxLength(2)
+        self.n.setPlaceholderText("N")
+        self.n.setGeometry(370, 450, 50, 30)
+
+
+        # FILL MODE SELECTOR
+
+        label3 = QLabel("Fill mode :", self)
+        label3.setGeometry(470, 390, 50, 60)
+
+        self.fm = QComboBox(self)
+        self.fm.addItems(
+            ['constant', 'nearest', 'reflect', 'wrap'])
+        self.fm.setGeometry(450, 450, 100, 30)
+        self.fm.setStyleSheet("background-color: white; border: 1px solid #DDDDDD;"
+                                                   "font-size: 14px; padding-left: 5px;")
 
         self.show()
 
-    def update_value_label(self, label):
-        label.setText(f"{self.sl.value()}")
+    def update_value_label1(self, label):
+        label.setText(f"{self.sl1.value()}")
+
+    def update_value_label2(self, label):
+        label.setText(f"{self.sl2.value()}")
 
     def on_Translate_index(self):
         pass
