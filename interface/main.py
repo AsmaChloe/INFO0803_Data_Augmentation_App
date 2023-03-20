@@ -3,13 +3,10 @@ import os
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt
-
 from keras_preprocessing.image import load_img, img_to_array, array_to_img
-
 from augmentation import fonctions
-from superqt import QRangeSlider, QLabeledSlider
+from superqt import QRangeSlider
 from qtrangeslider.qtcompat import QtCore
-from qtrangeslider.qtcompat import QtWidgets as QtW
 
 
 class Interface(QWidget):
@@ -17,14 +14,48 @@ class Interface(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.fm = None
+        ## QWIDGETS ##
+        self.list_widget = None
+
+        # Labels
+        self.label1 = None
+        self.label2 = None
+        self.label3 = None
+        self.label4 = None
+        self.label5 = None
+        self.label6 = None
+        self.label7 = None
+        self.label8 = None
+        self.value_label1 = None
+        self.value_label2 = None
+        self.status_label = None
+
+        # LineEdit
+        self.le = None
+        self.le2 = None
         self.n = None
+
+        # Checkbox
+        self.cb1 = None
+        self.cb2 = None
+
+        # Slider
         self.sl1 = None
         self.sl2 = None
-        self.status_label = None
-        self.folder_path = ''
-        self.list_widget = None
+
+        # ComboBox
+        self.fm = None
         self.transformation_selector = None
+
+        # Boolean used to know if the selection's widgets already exist
+        self.shear = False
+        self.zoom = False
+        self.flip = False
+        self.channel_shift = False
+        self.crop = False
+
+        self.folder_path = ''
+
         self.initUI()
 
     def initUI(self):
@@ -34,7 +65,7 @@ class Interface(QWidget):
         self.setWindowIcon(QIcon('folder_icon.png'))
 
         # Changer la couleur de fond
-        # self.setStyleSheet("background-color: #A4A6D5;")
+        # self.setStyleSheet("background-color: #242424")
 
         # Ajout d'une liste
         self.list_widget = QListWidget(self)
@@ -67,8 +98,8 @@ class Interface(QWidget):
         # Ajout du menu déroulant
         self.transformation_selector = QComboBox(self)
         self.transformation_selector.addItems(
-            ["Zoom", "Translate", "Flip", "Rotate", "Brightness", "Resize", "Scale", "Blur", "Noise", "Contrast",
-             "Crop"])
+            ["Zoom", "Flip", "Rotate", "Brightness", "Shift", "Shear", "Channel_shift", "Resize", "Crop",
+             "Contrast"])
         self.transformation_selector.setGeometry(10, 350, 580, 30)
         self.transformation_selector.setStyleSheet("background-color: white; border: 1px solid #DDDDDD;"
                                                    "font-size: 14px; padding-left: 5px;")
@@ -82,10 +113,15 @@ class Interface(QWidget):
 
         # Ajout du bouton "Tout cocher"
         tout_cocher_button = QPushButton("Tout cocher", self)
-        tout_cocher_button.setGeometry(10, 600, 580, 30)
+        tout_cocher_button.setGeometry(10, 600, 290, 30)
         tout_cocher_button.clicked.connect(self.on_cocher_button_clicked)
 
-        self.on_Index_changed()
+        # Ajout du bouton "Tout décocher"
+        tout_cocher_button = QPushButton("Tout décocher", self)
+        tout_cocher_button.setGeometry(310, 600, 280, 30)
+        tout_cocher_button.clicked.connect(self.on_decocher_button_clicked)
+
+        self.on_Zoom_index()
 
         self.show()
 
@@ -96,6 +132,11 @@ class Interface(QWidget):
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
             item.setCheckState(Qt.Checked)
+
+    def on_decocher_button_clicked(self):
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            item.setCheckState(Qt.Unchecked)
 
     def get_checked_items(self):
         checked_items = []
@@ -110,53 +151,52 @@ class Interface(QWidget):
 
         if selected_transform == "Zoom":
             self.on_Zoom_clicked()
-        elif selected_transform == "Translate":
-            self.on_Translate_clicked()
         elif selected_transform == "Flip":
             self.on_Flip_clicked()
         elif selected_transform == "Rotate":
             self.on_Rotate_clicked()
         elif selected_transform == "Brightness":
             self.on_Brightness_clicked()
+        elif selected_transform == "Shift":
+            self.on_Shift_clicked()
+        elif selected_transform == "Shear":
+            self.on_Shear_clicked()
+        elif selected_transform == "Channel_shift":
+            self.on_Channel_shift_clicked()
         elif selected_transform == "Resize":
             self.on_Resize_clicked()
-        elif selected_transform == "Scale":
-            self.on_Scale_clicked()
-        elif selected_transform == "Blur":
-            self.on_Blur_clicked()
-        elif selected_transform == "Noise":
-            self.on_Noise_clicked()
-        elif selected_transform == "Contrast":
-            self.on_Contrast_clicked()
         elif selected_transform == "Crop":
             self.on_Crop_clicked()
+        elif selected_transform == "Contrast":
+            self.on_Contrast_clicked()
         else:
             self.handle_error("Invalid transformation selected.")
 
-    def save_images(self, images):
+    def save_images(self, images, name):
         # fonction pour enregistrer les images zoomées
         for i, image in enumerate(images):
             image = array_to_img(image)
-            path = self.folder_path + f'/zoomed_{i}.jpg'
+            path = self.folder_path + f'/{name}_{i}.jpg'
             image.save(path)
-        # Ajouter un QLabel pour afficher le message
-        message_label = QLabel("Images enregistrées!", self)
-        message_label.setGeometry(120, 490, 580, 30)
-        message_label.show()
+
+        # Affichage du message Images enregistrées
+        QMessageBox.information(self, 'Bravo !', "Vos images ont bien été enregistrées")
 
     def resetUi(self):
-        # Supprimer les messages QLabel
+        # Reset des boutons en les cachant via l'attribut hide
         for child in self.children():
             if isinstance(child, QLabel) and child.text() != "Files in selected folder:":
-                child.deleteLater()
-            if isinstance(child, QPushButton) and child.text() not in ["Modifier", "Tout cocher"]:
-                child.deleteLater()
+                child.hide()
             if isinstance(child, QRangeSlider):
-                child.deleteLater()
-            if isinstance(child, QLineEdit):
-                child.deleteLater()
+                child.hide()
             if isinstance(child, QComboBox) and child != self.transformation_selector:
+                child.hide()
+            if isinstance(child, QLineEdit):
+                child.hide()
+            if isinstance(child, QPushButton) and child.text() not in ["Modifier", "Tout cocher", "Tout décocher"]:
                 child.deleteLater()
+            if isinstance(child, QCheckBox):
+                child.hide()
 
     def on_Index_changed(self):
         self.resetUi()
@@ -164,32 +204,34 @@ class Interface(QWidget):
 
         if selected_transform == "Zoom":
             self.on_Zoom_index()
-        elif selected_transform == "Translate":
-            self.on_Translate_index()
         elif selected_transform == "Flip":
             self.on_Flip_index()
         elif selected_transform == "Rotate":
             self.on_Rotate_index()
         elif selected_transform == "Brightness":
             self.on_Brightness_index()
+        elif selected_transform == "Shift":
+            self.on_Shift_index()
+        elif selected_transform == "Shear":
+            self.on_Shear_index()
+        elif selected_transform == "Channel_shift":
+            self.on_Channel_shift_index()
         elif selected_transform == "Resize":
             self.on_Resize_index()
-        elif selected_transform == "Scale":
-            self.on_Scale_index()
-        elif selected_transform == "Blur":
-            self.on_Blur_index()
-        elif selected_transform == "Noise":
-            self.on_Noise_index()
-        elif selected_transform == "Contrast":
-            self.on_Contrast_index()
         elif selected_transform == "Crop":
             self.on_Crop_index()
+        elif selected_transform == "Contrast":
+            self.on_Contrast_index()
+
         else:
             self.handle_error("Invalid transformation selected.")
 
     def on_Zoom_clicked(self):
         if len(self.get_checked_items()) == 0:
             self.handle_error("No images selected.")
+            return
+        if self.n.text() is None or self.n.text().isdigit() is not True:
+            self.handle_error("Select a valid images number")
             return
 
         zoomed_images = []
@@ -199,150 +241,526 @@ class Interface(QWidget):
             img = load_img(path)
             # conversion en numpy array
             data = img_to_array(img)
-            liste = fonctions.zoom(image=data, height_range=(self.sl1.value()[0]/50-1, self.sl1.value()[0]/50-1), width_range=(self.sl1.value()[1]/50-1, self.sl1.value()[1]/50-1), n=int(self.n.text()), fill_mode=self.fm.currentText())
+            liste = fonctions.zoom(image=data,
+                                   height_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                   width_range=(self.sl2.value()[0] / 50 - 1, self.sl2.value()[1] / 50 - 1),
+                                   n=int(self.n.text()), fill_mode=self.fm.currentText())
             for j in liste:
                 zoomed_images.append(j)
 
+        self.modified(zoomed_images, "Zoom")
+
+    def on_Flip_clicked(self):
+        if len(self.get_checked_items()) == 0:
+            self.handle_error("No images selected.")
+            return
+        if self.n.text() is None or self.n.text().isdigit() is not True:
+            self.handle_error("Select a valid images number")
+            return
+
+        flipped_images = []
+        for i in range(len(self.get_checked_items())):
+            path = self.folder_path + '/' + self.get_checked_items()[i]
+            # chargement de l'image
+            img = load_img(path)
+            # conversion en numpy array
+            data = img_to_array(img)
+            liste = fonctions.flip(image=data,
+                                   horizontal=self.cb1.isChecked(),
+                                   vertical=self.cb2.isChecked(),
+                                   n=int(self.n.text()))
+            for j in liste:
+                flipped_images.append(j)
+
+        self.modified(flipped_images, "Flip")
+
+    def on_Rotate_clicked(self):
+        if len(self.get_checked_items()) == 0:
+            self.handle_error("No images selected.")
+            return
+        if self.n.text() is None or self.n.text().isdigit() is not True:
+            self.handle_error("Select a valid images number")
+            return
+
+        rotated_images = []
+        for i in range(len(self.get_checked_items())):
+            path = self.folder_path + '/' + self.get_checked_items()[i]
+            # chargement de l'image
+            img = load_img(path)
+            # conversion en numpy array
+            data = img_to_array(img)
+            liste = fonctions.rotate(image=data,
+                                     angle_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                     n=int(self.n.text()))
+            for j in liste:
+                rotated_images.append(j)
+
+        self.modified(rotated_images, "Rotate")
+
+    def on_Brightness_clicked(self):
+        if len(self.get_checked_items()) == 0:
+            self.handle_error("No images selected.")
+            return
+        if self.n.text() is None or self.n.text().isdigit() is not True:
+            self.handle_error("Select a valid images number")
+            return
+
+        bright_images = []
+        for i in range(len(self.get_checked_items())):
+            path = self.folder_path + '/' + self.get_checked_items()[i]
+            # chargement de l'image
+            img = load_img(path)
+            # conversion en numpy array
+            data = img_to_array(img)
+            liste = fonctions.brightness(image=data,
+                                         brightness_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                         n=int(self.n.text()))
+            for j in liste:
+                bright_images.append(j)
+
+        self.modified(bright_images, "Bright")
+
+    def on_Shift_clicked(self):
+        if len(self.get_checked_items()) == 0:
+            self.handle_error("No images selected.")
+            return
+        if self.n.text() is None or self.n.text().isdigit() is not True:
+            self.handle_error("Select a valid images number")
+            return
+
+        shifted_images = []
+        for i in range(len(self.get_checked_items())):
+            path = self.folder_path + '/' + self.get_checked_items()[i]
+            # chargement de l'image
+            img = load_img(path)
+            # conversion en numpy array
+            data = img_to_array(img)
+            liste = fonctions.shift(image=data,
+                                    x_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                    y_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                    n=int(self.n.text()))
+            for j in liste:
+                shifted_images.append(j)
+
+            self.modified(shifted_images, "Shift")
+
+    def on_Shear_clicked(self):
+        if len(self.get_checked_items()) == 0:
+            self.handle_error("No images selected.")
+            return
+        if self.n.text() is None or self.n.text().isdigit() is not True:
+            self.handle_error("Select a valid images number")
+            return
+        if self.le.text() is None or self.le.text().isdigit() is not True or float(self.le.text()) < 0 or float(
+                self.le.text()) > 360:
+            self.handle_error("Select a valid shear value")
+            return
+
+        sheared_images = []
+        for i in range(len(self.get_checked_items())):
+            path = self.folder_path + '/' + self.get_checked_items()[i]
+            # chargement de l'image
+            img = load_img(path)
+            # conversion en numpy array
+            data = img_to_array(img)
+            liste = fonctions.shear(image=data,
+                                    shear_value=float(self.le.text()),
+                                    n=int(self.n.text()))
+            for j in liste:
+                sheared_images.append(j)
+
+            self.modified(sheared_images, "Shear")
+
+    def on_Channel_shift_clicked(self):
+        if len(self.get_checked_items()) == 0:
+            self.handle_error("No images selected.")
+            return
+        if self.n.text() is None or self.n.text().isdigit() is not True:
+            self.handle_error("Select a valid images number")
+            return
+
+        shifted_images = []
+        for i in range(len(self.get_checked_items())):
+            path = self.folder_path + '/' + self.get_checked_items()[i]
+            # chargement de l'image
+            img = load_img(path)
+            # conversion en numpy array
+            data = img_to_array(img)
+            liste = fonctions.channel_shift(image=data,
+                                            intensity=int(self.le.text()),
+                                            n=int(self.n.text()))
+            for j in liste:
+                shifted_images.append(j)
+
+            self.modified(shifted_images, "Channel shift")
+
+    def on_Resize_clicked(self):
+        if len(self.get_checked_items()) == 0:
+            self.handle_error("No images selected.")
+            return
+        if self.n.text() is None or self.n.text().isdigit() is not True:
+            self.handle_error("Select a valid images number")
+            return
+
+        resized_images = []
+        for i in range(len(self.get_checked_items())):
+            path = self.folder_path + '/' + self.get_checked_items()[i]
+            # chargement de l'image
+            img = load_img(path)
+            # conversion en numpy array
+            data = img_to_array(img)
+            liste = fonctions.resize(image=data,
+                                     width_range=(self.sl1.value()[0], self.sl1.value()[1]),
+                                     height_range=(self.sl2.value()[0], self.sl2.value()[1]),
+                                     n=int(self.n.text()))
+            for j in liste:
+                resized_images.append(j)
+
+            self.modified(resized_images, "Resize")
+
+    def on_Crop_clicked(self):
+        if len(self.get_checked_items()) == 0:
+            self.handle_error("No images selected.")
+            return
+        if self.n.text() is None or self.n.text().isdigit() is not True:
+            self.handle_error("Select a valid images number")
+            return
+
+        croped_images = []
+        for i in range(len(self.get_checked_items())):
+            path = self.folder_path + '/' + self.get_checked_items()[i]
+            # chargement de l'image
+            img = load_img(path)
+            # conversion en numpy array
+            data = img_to_array(img)
+            liste = fonctions.crop(image=data,
+                                   height=int(self.le.text()),
+                                   width=int(self.le2.text()),
+                                   n=int(self.n.text()))
+            for j in liste:
+                croped_images.append(j)
+
+            self.modified(croped_images, "Crop")
+
+    def on_Contrast_clicked(self):
+        if len(self.get_checked_items()) == 0:
+            self.handle_error("No images selected.")
+            return
+        if self.n.text() is None or self.n.text().isdigit() is False:
+            self.handle_error("Select a valid images number")
+            return
+
+        if self.le.text() is None or self.le.text().isdigit() is False or self.le2.text() is None or self.le2.text().isdigit() is False:
+            if int(self.le.text()) < 0 or int(self.le2.text()) > int(self.le.text()):
+                self.handle_error("Select valid contrast values")
+                return
+
+        contrasted_images = []
+        for i in range(len(self.get_checked_items())):
+            path = self.folder_path + '/' + self.get_checked_items()[i]
+            # chargement de l'image
+            img = load_img(path)
+            # conversion en numpy array
+            data = img_to_array(img)
+            contrast = (int(self.le.text()), int(self.le2.text()))
+            liste = fonctions.contrast(image=data,
+                                       contrast_range=contrast,
+                                       n=int(self.n.text()))
+            for j in liste:
+                contrasted_images.append(j)
+
+            self.modified(contrasted_images, "Contrast")
+
+    def modified(self, images, name):
         # Ajouter un QLabel pour afficher le message
         message_label = QLabel("Images modifiées!", self)
-        message_label.setGeometry(10, 490, 580, 30)
+        message_label.setGeometry(150, 520, 580, 30)
         message_label.show()
 
         # Ajouter un bouton "Enregistrer"
         save_button = QPushButton("Enregistrer", self)
         save_button.setGeometry(10, 520, 100, 30)
-        print(zoomed_images)
-        save_button.clicked.connect(lambda: self.save_images(zoomed_images))
+        save_button.clicked.connect(lambda: self.save_images(images, name))
         save_button.show()
-
-    def on_Translate_clicked(self):
-        pass
-
-    def on_Flip_clicked(self):
-        pass
-
-    def on_Rotate_clicked(self):
-        pass
-
-    def on_Brightness_clicked(self):
-        pass
-
-    def on_Resize_clicked(self):
-        pass
-
-    def on_Scale_clicked(self):
-        pass
-
-    def on_Blur_clicked(self):
-        pass
-
-    def on_Noise_clicked(self):
-        pass
-
-    def on_Contrast_clicked(self):
-        pass
-
-    def on_Crop_clicked(self):
-        pass
 
     # Modification du sélecteur de transformation
 
     def on_Zoom_index(self):
 
-        # HEIGHT RANGE SLIDER
+        if self.zoom:
+            self.sl1.show()
+            self.sl1.setValue((33, 66))
+            self.sl2.show()
+            self.sl2.setValue((33, 66))
+            self.label1.show()
+            self.value_label1.show()
+            self.label2.show()
+            self.value_label2.show()
+            self.label3.show()
+            self.n.show()
+            self.label4.show()
+            self.fm.show()
+            return
 
-        label1 = QLabel("Height_range :", self)
-        label1.setGeometry(10, 400, 80, 30)
+        # HEIGHT RANGE SLIDER
+        self.label1 = QLabel("Height_range :", self)
+        self.label1.setGeometry(10, 400, 80, 30)
 
         self.sl1 = QRangeSlider(QtCore.Qt.Horizontal, self)
         self.sl1.setValue((33, 66))
         self.sl1.setGeometry(10, 450, 150, 30)
 
         # Ajouter un QLabel pour afficher la valeur actuelle du slider
-        value_label1 = QLabel(f"{self.sl1.value()}", self)
-        value_label1.setGeometry(100, 400, 120, 30)
-        value_label1.setStyleSheet("font-size: 14px;")
+        self.value_label1 = QLabel(f"{self.sl1.value()[0] * 2 - 99, self.sl1.value()[1] * 2 - 99}", self)
+        self.value_label1.setGeometry(100, 400, 120, 30)
+        self.value_label1.setStyleSheet("font-size: 14px;")
 
         # Connecter le signal valueChanged du slider avec la fonction update_value_label
-        self.sl1.valueChanged.connect(lambda: self.update_value_label1(value_label1))
+        self.sl1.valueChanged.connect(lambda: self.update_value_label1(self.value_label1))
 
         # WIDTH RANGE SLIDER
 
-        label2 = QLabel("Width_range :", self)
-        label2.setGeometry(200, 400, 80, 30)
+        self.label2 = QLabel("Width_range :", self)
+        self.label2.setGeometry(200, 400, 80, 30)
 
         self.sl2 = QRangeSlider(QtCore.Qt.Horizontal, self)
         self.sl2.setValue((33, 66))
         self.sl2.setGeometry(190, 450, 150, 30)
 
         # Ajouter un QLabel pour afficher la valeur actuelle du slider
-        value_label2 = QLabel(f"{self.sl2.value()}", self)
-        value_label2.setGeometry(290, 400, 120, 30)
-        value_label2.setStyleSheet("font-size: 14px;")
+        self.value_label2 = QLabel(f"{self.sl2.value()[0] * 2 - 99, self.sl2.value()[1] * 2 - 99}", self)
+        self.value_label2.setGeometry(290, 400, 120, 30)
+        self.value_label2.setStyleSheet("font-size: 14px;")
 
         # Connecter le signal valueChanged du slider avec la fonction update_value_label
-        self.sl2.valueChanged.connect(lambda: self.update_value_label2(value_label2))
+        self.sl2.valueChanged.connect(lambda: self.update_value_label2(self.value_label2))
 
         # N QLINE EDIT
 
-        label3 = QLabel("Number of \n  images :", self)
-        label3.setGeometry(370, 390, 50, 60)
+        self.label3 = QLabel("Number of \n  images :", self)
+        self.label3.setGeometry(370, 390, 50, 60)
 
         self.n = QLineEdit(self)
         self.n.setMaxLength(2)
         self.n.setPlaceholderText("N")
         self.n.setGeometry(370, 450, 50, 30)
 
-
         # FILL MODE SELECTOR
 
-        label3 = QLabel("Fill mode :", self)
-        label3.setGeometry(470, 390, 50, 60)
+        self.label4 = QLabel("Fill mode :", self)
+        self.label4.setGeometry(470, 390, 50, 60)
 
         self.fm = QComboBox(self)
         self.fm.addItems(
             ['constant', 'nearest', 'reflect', 'wrap'])
         self.fm.setGeometry(450, 450, 100, 30)
         self.fm.setStyleSheet("background-color: white; border: 1px solid #DDDDDD;"
-                                                   "font-size: 14px; padding-left: 5px;")
-
-        self.show()
+                              "font-size: 14px; padding-left: 5px;")
+        self.zoom = True
 
     def update_value_label1(self, label):
-        label.setText(f"{self.sl1.value()}")
+        label.setText(f"{self.sl1.value()[0] * 2 - 99, self.sl1.value()[1] * 2 - 99}")
 
     def update_value_label2(self, label):
-        label.setText(f"{self.sl2.value()}")
-
-    def on_Translate_index(self):
-        pass
+        label.setText(f"{self.sl2.value()[0] * 2 - 99, self.sl2.value()[1] * 2 - 99}")
 
     def on_Flip_index(self):
-        pass
+        if self.flip:
+            self.cb1.show()
+            self.cb2.show()
+            self.n.clear()
+            self.n.show()
+            self.label3.show()
+            return
+
+        # HORIZONTAL FLIP
+
+        self.cb1 = QCheckBox("Horizontal flip", self)
+        self.cb1.setGeometry(30, 450, 150, 30)
+
+        # VERTICAL FLIP
+
+        self.cb2 = QCheckBox("Vertical flip", self)
+        self.cb2.setGeometry(190, 450, 150, 30)
+
+        self.cb1.show()
+        self.cb2.show()
+        self.label3.show()
+        self.n.show()
 
     def on_Rotate_index(self):
-        pass
+        self.label1.setText("Angle range :")
+        self.value_label1.show()
+        self.label1.show()
+        self.sl1.show()
+        self.label3.show()
+        self.label4.show()
+        self.fm.show()
+        self.n.show()
 
     def on_Brightness_index(self):
-        pass
+        self.label1.setText("Brightness range :")
+        self.value_label1.show()
+        self.label1.show()
+        self.sl1.show()
+        self.label3.show()
+        self.n.show()
+
+    def on_Shift_index(self):
+        self.sl1.setValue((33, 66))
+        self.sl1.show()
+        self.sl2.setValue((33, 66))
+        self.sl2.show()
+        self.label1.setText("X range :")
+        self.label1.show()
+        self.value_label1.show()
+        self.label2.setText("Y range :")
+        self.label2.show()
+        self.value_label2.show()
+        self.label3.show()
+        self.n.show()
+        self.label4.show()
+        self.fm.show()
+
+    def on_Shear_index(self):
+        if self.shear:
+            self.label3.show()
+            self.n.show()
+            self.label5.setText("Value of the shear between 0 and 360")
+            self.label5.show()
+            self.le.setGeometry(200, 450, 50, 30)
+            self.le.setPlaceholderText("sh")
+            self.le.show()
+            return
+
+        self.label5 = QLabel("Value of the shear between 0 and 360", self)
+        self.label5.setGeometry(130, 400, 200, 30)
+
+        self.le = QLineEdit(self)
+        self.le.setMaxLength(3)
+        self.le.setPlaceholderText("sh")
+        self.le.setGeometry(200, 450, 50, 30)
+
+        self.label3.show()
+        self.n.show()
+        self.label5.show()
+        self.le.show()
+
+        self.shear = True
+
+    def on_Channel_shift_index(self):
+        if self.channel_shift:
+            self.label3.show()
+            self.n.show()
+            self.label6.setText("Value of the Channel shift between 0 and 200")
+            self.label6.show()
+            self.le.setPlaceholderText("int")
+            self.le.setGeometry(200, 450, 50, 30)
+            self.le.show()
+            return
+
+        self.label6 = QLabel("Value of the intensity between 0 and 200", self)
+        self.label6.setGeometry(110, 400, 250, 30)
+
+        self.le = QLineEdit(self)
+        self.le.setMaxLength(3)
+        self.le.setPlaceholderText("int")
+        self.le.setGeometry(200, 450, 50, 30)
+
+        self.label3.show()
+        self.n.show()
+        self.label6.show()
+        self.le.show()
+
+        self.channel_shift = True
 
     def on_Resize_index(self):
-        pass
-
-    def on_Scale_index(self):
-        pass
-
-    def on_Blur_index(self):
-        pass
-
-    def on_Noise_index(self):
-        pass
-
-    def on_Contrast_index(self):
-        pass
+        self.label1.setText("Width range :")
+        self.value_label1.show()
+        self.label1.show()
+        self.sl1.show()
+        self.label2.setText("Height range :")
+        self.value_label2.show()
+        self.label2.show()
+        self.sl2.show()
+        self.label3.show()
+        self.n.show()
 
     def on_Crop_index(self):
-        pass
+        if self.crop:
+            self.label7.show()
+            self.label8.show()
+            self.label3.show()
+            self.n.show()
+            self.le.setPlaceholderText("H")
+            self.le.setGeometry(140, 450, 50, 30)
+            self.le.show()
+            self.le2.show()
+            return
+
+        self.label7 = QLabel("Height of the crop", self)
+        self.label7.setGeometry(130, 400, 200, 30)
+
+        self.le = QLineEdit(self)
+        self.le.setMaxLength(3)
+        self.le.setPlaceholderText("H")
+        self.le.setGeometry(140, 450, 50, 30)
+
+        self.label8 = QLabel("Width of the crop", self)
+        self.label8.setGeometry(250, 400, 200, 30)
+
+        self.le2 = QLineEdit(self)
+        self.le2.setMaxLength(3)
+        self.le2.setPlaceholderText("W")
+        self.le2.setGeometry(260, 450, 50, 30)
+
+        self.label7.show()
+        self.label8.show()
+        self.n.show()
+        self.label3.show()
+        self.le.show()
+        self.le2.show()
+
+        self.crop = True
+
+    def on_Contrast_index(self):
+        if self.crop:
+            self.label7.setText("Contrast min")
+            self.label7.show()
+            self.label8.setText("Contrast max")
+            self.label8.show()
+            self.label3.show()
+            self.n.show()
+            self.le.setPlaceholderText("H")
+            self.le.setGeometry(140, 450, 50, 30)
+            self.le.show()
+            self.le2.show()
+            return
+
+        self.label7 = QLabel("Contrast min", self)
+        self.label7.setGeometry(130, 400, 200, 30)
+
+        self.le = QLineEdit(self)
+        self.le.setMaxLength(3)
+        self.le.setPlaceholderText("min")
+        self.le.setGeometry(140, 450, 50, 30)
+
+        self.label8 = QLabel("Contrast max", self)
+        self.label8.setGeometry(250, 400, 200, 30)
+
+        self.le2 = QLineEdit(self)
+        self.le2.setMaxLength(3)
+        self.le2.setPlaceholderText("max")
+        self.le2.setGeometry(260, 450, 50, 30)
+
+        self.label7.show()
+        self.label8.show()
+        self.n.show()
+        self.label3.show()
+        self.le.show()
+        self.le2.show()
+
+        self.crop = True
 
 
 if __name__ == '__main__':
