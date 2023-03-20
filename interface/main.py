@@ -31,8 +31,13 @@ class Interface(QWidget):
         self.status_label = None
 
         # LineEdit
-        self.le = None
+        self.le1 = None
         self.le2 = None
+        self.le3 = None
+        self.le4 = None
+        self.le5 = None
+        self.le6 = None
+
         self.n = None
 
         # Checkbox
@@ -53,6 +58,7 @@ class Interface(QWidget):
         self.flip = False
         self.channel_shift = False
         self.crop = False
+        self.resize = False
 
         self.folder_path = ''
 
@@ -351,8 +357,8 @@ class Interface(QWidget):
         if self.n.text() is None or self.n.text().isdigit() is not True:
             self.handle_error("Select a valid images number")
             return
-        if self.le.text() is None or self.le.text().isdigit() is not True or float(self.le.text()) < 0 or float(
-                self.le.text()) > 360:
+        if self.le1.text() is None or self.le1.text().isdigit() is not True or float(self.le1.text()) < 0 or float(
+                self.le1.text()) > 360:
             self.handle_error("Select a valid shear value")
             return
 
@@ -364,7 +370,7 @@ class Interface(QWidget):
             # conversion en numpy array
             data = img_to_array(img)
             liste = fonctions.shear(image=data,
-                                    shear_value=float(self.le.text()),
+                                    shear_value=int(self.le1.text()),
                                     n=int(self.n.text()))
             for j in liste:
                 sheared_images.append(j)
@@ -387,7 +393,7 @@ class Interface(QWidget):
             # conversion en numpy array
             data = img_to_array(img)
             liste = fonctions.channel_shift(image=data,
-                                            intensity=int(self.le.text()),
+                                            intensity=int(self.le1.text()),
                                             n=int(self.n.text()))
             for j in liste:
                 shifted_images.append(j)
@@ -401,6 +407,18 @@ class Interface(QWidget):
         if self.n.text() is None or self.n.text().isdigit() is not True:
             self.handle_error("Select a valid images number")
             return
+        if self.le3.text() is None or self.le3.text().isdigit() is False or self.le4.text() is None or self.le4.text().isdigit() is False:
+            self.handle_error("Select valid resize values")
+            return
+        if self.le5.text() is None or self.le5.text().isdigit() is False or self.le6.text() is None or self.le6.text().isdigit() is False:
+            self.handle_error("Select valid resize values")
+            return
+        if int(self.le3.text()) < 0 or int(self.le4.text()) < 0 or int(self.le5.text()) < 0 or int(self.le6.text()) < 0:
+            self.handle_error("Select valid resize values")
+            return
+        if int(self.le3.text()) > int(self.le4.text()) or int(self.le5.text()) > int(self.le6.text()):
+            self.handle_error("Select valid resize values")
+            return
 
         resized_images = []
         for i in range(len(self.get_checked_items())):
@@ -409,9 +427,11 @@ class Interface(QWidget):
             img = load_img(path)
             # conversion en numpy array
             data = img_to_array(img)
+            width = (int(self.le3.text()), int(self.le4.text()))
+            height = (int(self.le5.text()), int(self.le6.text()))
             liste = fonctions.resize(image=data,
-                                     width_range=(self.sl1.value()[0], self.sl1.value()[1]),
-                                     height_range=(self.sl2.value()[0], self.sl2.value()[1]),
+                                     width_range=width,
+                                     height_range=height,
                                      n=int(self.n.text()))
             for j in liste:
                 resized_images.append(j)
@@ -434,7 +454,7 @@ class Interface(QWidget):
             # conversion en numpy array
             data = img_to_array(img)
             liste = fonctions.crop(image=data,
-                                   height=int(self.le.text()),
+                                   height=int(self.le1.text()),
                                    width=int(self.le2.text()),
                                    n=int(self.n.text()))
             for j in liste:
@@ -450,10 +470,12 @@ class Interface(QWidget):
             self.handle_error("Select a valid images number")
             return
 
-        if self.le.text() is None or self.le.text().isdigit() is False or self.le2.text() is None or self.le2.text().isdigit() is False:
-            if int(self.le.text()) < 0 or int(self.le2.text()) > int(self.le.text()):
-                self.handle_error("Select valid contrast values")
-                return
+        if self.le1.text() is None or self.le1.text().isdigit() is False or self.le2.text() is None or self.le2.text().isdigit() is False:
+            self.handle_error("Select valid contrast values")
+            return
+        if int(self.le1.text()) < 0 or int(self.le2.text()) < int(self.le1.text()):
+            self.handle_error("Select valid contrast values")
+            return
 
         contrasted_images = []
         for i in range(len(self.get_checked_items())):
@@ -462,7 +484,7 @@ class Interface(QWidget):
             img = load_img(path)
             # conversion en numpy array
             data = img_to_array(img)
-            contrast = (int(self.le.text()), int(self.le2.text()))
+            contrast = (int(self.le1.text()), int(self.le2.text()))
             liste = fonctions.contrast(image=data,
                                        contrast_range=contrast,
                                        n=int(self.n.text()))
@@ -628,23 +650,23 @@ class Interface(QWidget):
             self.n.show()
             self.label5.setText("Value of the shear between 0 and 360")
             self.label5.show()
-            self.le.setGeometry(200, 450, 50, 30)
-            self.le.setPlaceholderText("sh")
-            self.le.show()
+            self.le1.setGeometry(200, 450, 50, 30)
+            self.le1.setPlaceholderText("sh")
+            self.le1.show()
             return
 
         self.label5 = QLabel("Value of the shear between 0 and 360", self)
         self.label5.setGeometry(130, 400, 200, 30)
 
-        self.le = QLineEdit(self)
-        self.le.setMaxLength(3)
-        self.le.setPlaceholderText("sh")
-        self.le.setGeometry(200, 450, 50, 30)
+        self.le1 = QLineEdit(self)
+        self.le1.setMaxLength(3)
+        self.le1.setPlaceholderText("sh")
+        self.le1.setGeometry(200, 450, 50, 30)
 
         self.label3.show()
         self.n.show()
         self.label5.show()
-        self.le.show()
+        self.le1.show()
 
         self.shear = True
 
@@ -654,35 +676,66 @@ class Interface(QWidget):
             self.n.show()
             self.label6.setText("Value of the Channel shift between 0 and 200")
             self.label6.show()
-            self.le.setPlaceholderText("int")
-            self.le.setGeometry(200, 450, 50, 30)
-            self.le.show()
+            self.le1.setPlaceholderText("int")
+            self.le1.setGeometry(200, 450, 50, 30)
+            self.le1.show()
             return
 
         self.label6 = QLabel("Value of the intensity between 0 and 200", self)
         self.label6.setGeometry(110, 400, 250, 30)
 
-        self.le = QLineEdit(self)
-        self.le.setMaxLength(3)
-        self.le.setPlaceholderText("int")
-        self.le.setGeometry(200, 450, 50, 30)
+        self.le1 = QLineEdit(self)
+        self.le1.setMaxLength(3)
+        self.le1.setPlaceholderText("int")
+        self.le1.setGeometry(200, 450, 50, 30)
 
         self.label3.show()
         self.n.show()
         self.label6.show()
-        self.le.show()
+        self.le1.show()
 
         self.channel_shift = True
 
     def on_Resize_index(self):
+        if self.resize:
+            self.le3.show()
+            self.le4.show()
+            self.label1.show()
+            self.label2.show()
+            self.label3.show()
+            self.n.show()
+            return
+
         self.label1.setText("Width range :")
-        self.value_label1.show()
         self.label1.show()
-        self.sl1.show()
+
+        self.le3 = QLineEdit(self)
+        self.le3.setMaxLength(3)
+        self.le3.setPlaceholderText("min")
+        self.le3.setGeometry(10, 450, 30, 30)
+        self.le3.show()
+
+        self.le4 = QLineEdit(self)
+        self.le4.setMaxLength(3)
+        self.le4.setPlaceholderText("max")
+        self.le4.setGeometry(50, 450, 30, 30)
+        self.le4.show()
+
         self.label2.setText("Height range :")
-        self.value_label2.show()
         self.label2.show()
-        self.sl2.show()
+
+        self.le5 = QLineEdit(self)
+        self.le5.setMaxLength(3)
+        self.le5.setPlaceholderText("min")
+        self.le5.setGeometry(200, 450, 30, 30)
+        self.le5.show()
+
+        self.le6 = QLineEdit(self)
+        self.le6.setMaxLength(3)
+        self.le6.setPlaceholderText("max")
+        self.le6.setGeometry(240, 450, 30, 30)
+        self.le6.show()
+
         self.label3.show()
         self.n.show()
 
@@ -692,19 +745,19 @@ class Interface(QWidget):
             self.label8.show()
             self.label3.show()
             self.n.show()
-            self.le.setPlaceholderText("H")
-            self.le.setGeometry(140, 450, 50, 30)
-            self.le.show()
+            self.le1.setPlaceholderText("H")
+            self.le1.setGeometry(140, 450, 50, 30)
+            self.le1.show()
             self.le2.show()
             return
 
         self.label7 = QLabel("Height of the crop", self)
         self.label7.setGeometry(130, 400, 200, 30)
 
-        self.le = QLineEdit(self)
-        self.le.setMaxLength(3)
-        self.le.setPlaceholderText("H")
-        self.le.setGeometry(140, 450, 50, 30)
+        self.le1 = QLineEdit(self)
+        self.le1.setMaxLength(3)
+        self.le1.setPlaceholderText("H")
+        self.le1.setGeometry(140, 450, 50, 30)
 
         self.label8 = QLabel("Width of the crop", self)
         self.label8.setGeometry(250, 400, 200, 30)
@@ -718,7 +771,7 @@ class Interface(QWidget):
         self.label8.show()
         self.n.show()
         self.label3.show()
-        self.le.show()
+        self.le1.show()
         self.le2.show()
 
         self.crop = True
@@ -731,19 +784,19 @@ class Interface(QWidget):
             self.label8.show()
             self.label3.show()
             self.n.show()
-            self.le.setPlaceholderText("H")
-            self.le.setGeometry(140, 450, 50, 30)
-            self.le.show()
+            self.le1.setPlaceholderText("H")
+            self.le1.setGeometry(140, 450, 50, 30)
+            self.le1.show()
             self.le2.show()
             return
 
         self.label7 = QLabel("Contrast min", self)
         self.label7.setGeometry(130, 400, 200, 30)
 
-        self.le = QLineEdit(self)
-        self.le.setMaxLength(3)
-        self.le.setPlaceholderText("min")
-        self.le.setGeometry(140, 450, 50, 30)
+        self.le1 = QLineEdit(self)
+        self.le1.setMaxLength(3)
+        self.le1.setPlaceholderText("min")
+        self.le1.setGeometry(140, 450, 50, 30)
 
         self.label8 = QLabel("Contrast max", self)
         self.label8.setGeometry(250, 400, 200, 30)
@@ -757,7 +810,7 @@ class Interface(QWidget):
         self.label8.show()
         self.n.show()
         self.label3.show()
-        self.le.show()
+        self.le1.show()
         self.le2.show()
 
         self.crop = True
