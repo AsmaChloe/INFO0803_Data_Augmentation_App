@@ -1,8 +1,8 @@
 import sys
 import os
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon, QPixmap, QImage
+from PyQt5.QtCore import Qt, QByteArray
 from keras_preprocessing.image import load_img, img_to_array, array_to_img
 from augmentation import fonctions
 from superqt import QRangeSlider
@@ -29,6 +29,7 @@ class Interface(QWidget):
         self.value_label1 = None
         self.value_label2 = None
         self.status_label = None
+        self.message_label = None
 
         # LineEdit
         self.le1 = None
@@ -52,6 +53,10 @@ class Interface(QWidget):
         self.fm = None
         self.transformation_selector = None
 
+        # Button
+        self.reset_button = None
+        self.save_button = None
+
         # Boolean used to know if the selection's widgets already exist
         self.shear = False
         self.zoom = False
@@ -60,13 +65,18 @@ class Interface(QWidget):
         self.crop = False
         self.resize = False
 
+        self.im = None
+        self.scroll = None
+        self.name = None
+        self.modifiedOnce = False
+        self.modifiedImages = []
         self.folder_path = ''
 
         self.initUI()
 
     def initUI(self):
 
-        self.setGeometry(300, 300, 600, 640)
+        self.setGeometry(300, 300, 1200, 640)
         self.setWindowTitle('Data Augmentation')
         self.setWindowIcon(QIcon('folder_icon.png'))
 
@@ -144,6 +154,14 @@ class Interface(QWidget):
             item = self.list_widget.item(i)
             item.setCheckState(Qt.Unchecked)
 
+    def on_reset_button_clicked(self):
+        self.modifiedImages = []
+        for child in self.children():
+            if isinstance(child, QPushButton) and child.text() not in ["Modifier", "Tout cocher", "Tout décocher"]:
+                child.hide()
+            if isinstance(child, QLabel) and child.text() == "Images modifiées!":
+                child.hide()
+
     def get_checked_items(self):
         checked_items = []
         for i in range(self.list_widget.count()):
@@ -178,11 +196,11 @@ class Interface(QWidget):
         else:
             self.handle_error("Invalid transformation selected.")
 
-    def save_images(self, images, name):
+    def save_images(self):
         # fonction pour enregistrer les images zoomées
-        for i, image in enumerate(images):
+        for i, image in enumerate(self.modifiedImages):
             image = array_to_img(image)
-            path = self.folder_path + f'/{name}_{i}.jpg'
+            path = self.folder_path + f'/{self.name}_{i}.jpg'
             image.save(path)
 
         # Affichage du message Images enregistrées
@@ -199,7 +217,8 @@ class Interface(QWidget):
                 child.hide()
             if isinstance(child, QLineEdit):
                 child.hide()
-            if isinstance(child, QPushButton) and child.text() not in ["Modifier", "Tout cocher", "Tout décocher"]:
+            if isinstance(child, QPushButton) and child.text() not in ["Enregistrer", "Reset", "Modifier",
+                                                                       "Tout cocher", "Tout décocher"]:
                 child.deleteLater()
             if isinstance(child, QCheckBox):
                 child.hide()
@@ -241,20 +260,35 @@ class Interface(QWidget):
             return
 
         zoomed_images = []
-        for i in range(len(self.get_checked_items())):
-            path = self.folder_path + '/' + self.get_checked_items()[i]
-            # chargement de l'image
-            img = load_img(path)
-            # conversion en numpy array
-            data = img_to_array(img)
-            liste = fonctions.zoom(image=data,
-                                   height_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
-                                   width_range=(self.sl2.value()[0] / 50 - 1, self.sl2.value()[1] / 50 - 1),
-                                   n=int(self.n.text()), fill_mode=self.fm.currentText())
-            for j in liste:
-                zoomed_images.append(j)
+        if len(self.modifiedImages) > 0:
+            print("test2")
+            for i in range(len(self.modifiedImages)):
+                data = self.modifiedImages[i]
+                print(data)
+                liste = fonctions.zoom(image=data,
+                                       height_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                       width_range=(self.sl2.value()[0] / 50 - 1, self.sl2.value()[1] / 50 - 1),
+                                       n=int(self.n.text()), fill_mode=self.fm.currentText())
+                for j in liste:
+                    zoomed_images.append(j)
+        else:
+            print("test1")
+            for i in range(len(self.get_checked_items())):
+                path = self.folder_path + '/' + self.get_checked_items()[i]
+                # chargement de l'image
+                img = load_img(path)
+                # conversion en numpy array
+                data = img_to_array(img)
+                liste = fonctions.zoom(image=data,
+                                       height_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                       width_range=(self.sl2.value()[0] / 50 - 1, self.sl2.value()[1] / 50 - 1),
+                                       n=int(self.n.text()), fill_mode=self.fm.currentText())
+                for j in liste:
+                    zoomed_images.append(j)
 
-        self.modified(zoomed_images, "Zoom")
+        self.modifiedImages = zoomed_images
+        self.name = "Zoom"
+        self.modified()
 
     def on_Flip_clicked(self):
         if len(self.get_checked_items()) == 0:
@@ -265,20 +299,32 @@ class Interface(QWidget):
             return
 
         flipped_images = []
-        for i in range(len(self.get_checked_items())):
-            path = self.folder_path + '/' + self.get_checked_items()[i]
-            # chargement de l'image
-            img = load_img(path)
-            # conversion en numpy array
-            data = img_to_array(img)
-            liste = fonctions.flip(image=data,
-                                   horizontal=self.cb1.isChecked(),
-                                   vertical=self.cb2.isChecked(),
-                                   n=int(self.n.text()))
-            for j in liste:
-                flipped_images.append(j)
+        if len(self.modifiedImages) > 0:
+            for i in range(len(self.modifiedImages)):
+                data = self.modifiedImages[i]
+                liste = fonctions.flip(image=data,
+                                       horizontal=self.cb1.isChecked(),
+                                       vertical=self.cb2.isChecked(),
+                                       n=int(self.n.text()))
+                for j in liste:
+                    flipped_images.append(j)
+        else:
+            for i in range(len(self.get_checked_items())):
+                path = self.folder_path + '/' + self.get_checked_items()[i]
+                # chargement de l'image
+                img = load_img(path)
+                # conversion en numpy array
+                data = img_to_array(img)
+                liste = fonctions.flip(image=data,
+                                       horizontal=self.cb1.isChecked(),
+                                       vertical=self.cb2.isChecked(),
+                                       n=int(self.n.text()))
+                for j in liste:
+                    flipped_images.append(j)
 
-        self.modified(flipped_images, "Flip")
+        self.modifiedImages = flipped_images
+        self.name = "Flip"
+        self.modified()
 
     def on_Rotate_clicked(self):
         if len(self.get_checked_items()) == 0:
@@ -289,19 +335,30 @@ class Interface(QWidget):
             return
 
         rotated_images = []
-        for i in range(len(self.get_checked_items())):
-            path = self.folder_path + '/' + self.get_checked_items()[i]
-            # chargement de l'image
-            img = load_img(path)
-            # conversion en numpy array
-            data = img_to_array(img)
-            liste = fonctions.rotate(image=data,
-                                     angle_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
-                                     n=int(self.n.text()))
-            for j in liste:
-                rotated_images.append(j)
+        if len(self.modifiedImages) > 0:
+            for i in range(len(self.modifiedImages)):
+                data = self.modifiedImages[i]
+                liste = fonctions.rotate(image=data,
+                                         angle_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                         n=int(self.n.text()))
+                for j in liste:
+                    rotated_images.append(j)
+        else:
+            for i in range(len(self.get_checked_items())):
+                path = self.folder_path + '/' + self.get_checked_items()[i]
+                # chargement de l'image
+                img = load_img(path)
+                # conversion en numpy array
+                data = img_to_array(img)
+                liste = fonctions.rotate(image=data,
+                                         angle_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                         n=int(self.n.text()))
+                for j in liste:
+                    rotated_images.append(j)
 
-        self.modified(rotated_images, "Rotate")
+        self.modifiedImages = rotated_images
+        self.name = "Rotate"
+        self.modified()
 
     def on_Brightness_clicked(self):
         if len(self.get_checked_items()) == 0:
@@ -312,19 +369,32 @@ class Interface(QWidget):
             return
 
         bright_images = []
-        for i in range(len(self.get_checked_items())):
-            path = self.folder_path + '/' + self.get_checked_items()[i]
-            # chargement de l'image
-            img = load_img(path)
-            # conversion en numpy array
-            data = img_to_array(img)
-            liste = fonctions.brightness(image=data,
-                                         brightness_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
-                                         n=int(self.n.text()))
-            for j in liste:
-                bright_images.append(j)
+        if len(self.modifiedImages) > 0:
+            for i in range(len(self.modifiedImages)):
+                data = self.modifiedImages[i]
+                liste = fonctions.brightness(image=data,
+                                             brightness_range=(
+                                                 self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                             n=int(self.n.text()))
+                for j in liste:
+                    bright_images.append(j)
+        else:
+            for i in range(len(self.get_checked_items())):
+                path = self.folder_path + '/' + self.get_checked_items()[i]
+                # chargement de l'image
+                img = load_img(path)
+                # conversion en numpy array
+                data = img_to_array(img)
+                liste = fonctions.brightness(image=data,
+                                             brightness_range=(
+                                                 self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                             n=int(self.n.text()))
+                for j in liste:
+                    bright_images.append(j)
 
-        self.modified(bright_images, "Bright")
+        self.modifiedImages = bright_images
+        self.name = "Bright"
+        self.modified()
 
     def on_Shift_clicked(self):
         if len(self.get_checked_items()) == 0:
@@ -335,20 +405,35 @@ class Interface(QWidget):
             return
 
         shifted_images = []
-        for i in range(len(self.get_checked_items())):
-            path = self.folder_path + '/' + self.get_checked_items()[i]
-            # chargement de l'image
-            img = load_img(path)
-            # conversion en numpy array
-            data = img_to_array(img)
-            liste = fonctions.shift(image=data,
-                                    x_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
-                                    y_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
-                                    n=int(self.n.text()))
-            for j in liste:
-                shifted_images.append(j)
-
+        if len(self.modifiedImages) > 0:
+            print(len(self.modifiedImages))
+            for i in range(len(self.modifiedImages)):
+                data = self.modifiedImages[i]
+                liste = fonctions.shift(image=data,
+                                        x_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                        y_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                        n=int(self.n.text()))
+                for j in liste:
+                    shifted_images.append(j)
             self.modified(shifted_images, "Shift")
+            return
+        else:
+            for i in range(len(self.get_checked_items())):
+                path = self.folder_path + '/' + self.get_checked_items()[i]
+                # chargement de l'image
+                img = load_img(path)
+                # conversion en numpy array
+                data = img_to_array(img)
+                liste = fonctions.shift(image=data,
+                                        x_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                        y_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
+                                        n=int(self.n.text()))
+                for j in liste:
+                    shifted_images.append(j)
+
+        self.modifiedImages = shifted_images
+        self.name = "Shift"
+        self.modified()
 
     def on_Shear_clicked(self):
         if len(self.get_checked_items()) == 0:
@@ -361,21 +446,32 @@ class Interface(QWidget):
                 self.le1.text()) > 360:
             self.handle_error("Select a valid shear value")
             return
-
         sheared_images = []
-        for i in range(len(self.get_checked_items())):
-            path = self.folder_path + '/' + self.get_checked_items()[i]
-            # chargement de l'image
-            img = load_img(path)
-            # conversion en numpy array
-            data = img_to_array(img)
-            liste = fonctions.shear(image=data,
-                                    shear_value=int(self.le1.text()),
-                                    n=int(self.n.text()))
-            for j in liste:
-                sheared_images.append(j)
+        if len(self.modifiedImages) > 0:
+            for i in range(len(self.modifiedImages)):
+                data = self.modifiedImages[i]
+                liste = fonctions.shear(image=data,
+                                        shear_value=int(self.le1.text()),
+                                        n=int(self.n.text()))
+                for j in liste:
+                    sheared_images.append(j)
 
-            self.modified(sheared_images, "Shear")
+        else:
+            for i in range(len(self.get_checked_items())):
+                path = self.folder_path + '/' + self.get_checked_items()[i]
+                # chargement de l'image
+                img = load_img(path)
+                # conversion en numpy array
+                data = img_to_array(img)
+                liste = fonctions.shear(image=data,
+                                        shear_value=int(self.le1.text()),
+                                        n=int(self.n.text()))
+                for j in liste:
+                    sheared_images.append(j)
+
+        self.modifiedImages = sheared_images
+        self.name = "Shear"
+        self.modified()
 
     def on_Channel_shift_clicked(self):
         if len(self.get_checked_items()) == 0:
@@ -386,19 +482,30 @@ class Interface(QWidget):
             return
 
         shifted_images = []
-        for i in range(len(self.get_checked_items())):
-            path = self.folder_path + '/' + self.get_checked_items()[i]
-            # chargement de l'image
-            img = load_img(path)
-            # conversion en numpy array
-            data = img_to_array(img)
-            liste = fonctions.channel_shift(image=data,
-                                            intensity=int(self.le1.text()),
-                                            n=int(self.n.text()))
-            for j in liste:
-                shifted_images.append(j)
+        if len(self.modifiedImages) > 0:
+            for i in range(len(self.modifiedImages)):
+                data = self.modifiedImages[i]
+                liste = fonctions.channel_shift(image=data,
+                                                intensity=int(self.le1.text()),
+                                                n=int(self.n.text()))
+                for j in liste:
+                    shifted_images.append(j)
+        else:
+            for i in range(len(self.get_checked_items())):
+                path = self.folder_path + '/' + self.get_checked_items()[i]
+                # chargement de l'image
+                img = load_img(path)
+                # conversion en numpy array
+                data = img_to_array(img)
+                liste = fonctions.channel_shift(image=data,
+                                                intensity=int(self.le1.text()),
+                                                n=int(self.n.text()))
+                for j in liste:
+                    shifted_images.append(j)
 
-            self.modified(shifted_images, "Channel shift")
+        self.modifiedImages = shifted_images
+        self.name = "Channel shift"
+        self.modified()
 
     def on_Resize_clicked(self):
         if len(self.get_checked_items()) == 0:
@@ -421,22 +528,36 @@ class Interface(QWidget):
             return
 
         resized_images = []
-        for i in range(len(self.get_checked_items())):
-            path = self.folder_path + '/' + self.get_checked_items()[i]
-            # chargement de l'image
-            img = load_img(path)
-            # conversion en numpy array
-            data = img_to_array(img)
-            width = (int(self.le3.text()), int(self.le4.text()))
-            height = (int(self.le5.text()), int(self.le6.text()))
-            liste = fonctions.resize(image=data,
-                                     width_range=width,
-                                     height_range=height,
-                                     n=int(self.n.text()))
-            for j in liste:
-                resized_images.append(j)
+        if len(self.modifiedImages) > 0:
+            for i in range(len(self.modifiedImages)):
+                data = self.modifiedImages[i]
+                width = (int(self.le3.text()), int(self.le4.text()))
+                height = (int(self.le5.text()), int(self.le6.text()))
+                liste = fonctions.resize(image=data,
+                                         width_range=width,
+                                         height_range=height,
+                                         n=int(self.n.text()))
+                for j in liste:
+                    resized_images.append(j)
+        else:
+            for i in range(len(self.get_checked_items())):
+                path = self.folder_path + '/' + self.get_checked_items()[i]
+                # chargement de l'image
+                img = load_img(path)
+                # conversion en numpy array
+                data = img_to_array(img)
+                width = (int(self.le3.text()), int(self.le4.text()))
+                height = (int(self.le5.text()), int(self.le6.text()))
+                liste = fonctions.resize(image=data,
+                                         width_range=width,
+                                         height_range=height,
+                                         n=int(self.n.text()))
+                for j in liste:
+                    resized_images.append(j)
 
-            self.modified(resized_images, "Resize")
+        self.modifiedImages = resized_images
+        self.name = "Resize"
+        self.modified()
 
     def on_Crop_clicked(self):
         if len(self.get_checked_items()) == 0:
@@ -447,20 +568,32 @@ class Interface(QWidget):
             return
 
         croped_images = []
-        for i in range(len(self.get_checked_items())):
-            path = self.folder_path + '/' + self.get_checked_items()[i]
-            # chargement de l'image
-            img = load_img(path)
-            # conversion en numpy array
-            data = img_to_array(img)
-            liste = fonctions.crop(image=data,
-                                   height=int(self.le1.text()),
-                                   width=int(self.le2.text()),
-                                   n=int(self.n.text()))
-            for j in liste:
-                croped_images.append(j)
+        if len(self.modifiedImages) > 0:
+            for i in range(len(self.modifiedImages)):
+                data = self.modifiedImages[i]
+                liste = fonctions.crop(image=data,
+                                       height=int(self.le1.text()),
+                                       width=int(self.le2.text()),
+                                       n=int(self.n.text()))
+                for j in liste:
+                    croped_images.append(j)
+        else:
+            for i in range(len(self.get_checked_items())):
+                path = self.folder_path + '/' + self.get_checked_items()[i]
+                # chargement de l'image
+                img = load_img(path)
+                # conversion en numpy array
+                data = img_to_array(img)
+                liste = fonctions.crop(image=data,
+                                       height=int(self.le1.text()),
+                                       width=int(self.le2.text()),
+                                       n=int(self.n.text()))
+                for j in liste:
+                    croped_images.append(j)
 
-            self.modified(croped_images, "Crop")
+        self.modifiedImages = croped_images
+        self.name = "Crop"
+        self.modified()
 
     def on_Contrast_clicked(self):
         if len(self.get_checked_items()) == 0:
@@ -478,32 +611,82 @@ class Interface(QWidget):
             return
 
         contrasted_images = []
-        for i in range(len(self.get_checked_items())):
-            path = self.folder_path + '/' + self.get_checked_items()[i]
-            # chargement de l'image
-            img = load_img(path)
-            # conversion en numpy array
-            data = img_to_array(img)
-            contrast = (int(self.le1.text()), int(self.le2.text()))
-            liste = fonctions.contrast(image=data,
-                                       contrast_range=contrast,
-                                       n=int(self.n.text()))
-            for j in liste:
-                contrasted_images.append(j)
+        if len(self.modifiedImages) > 0:
+            for i in range(len(self.modifiedImages)):
+                data = self.modifiedImages[i]
+                contrast = (int(self.le1.text()), int(self.le2.text()))
+                liste = fonctions.contrast(image=data,
+                                           contrast_range=contrast,
+                                           n=int(self.n.text()))
+                for j in liste:
+                    contrasted_images.append(j)
+        else:
+            for i in range(len(self.get_checked_items())):
+                path = self.folder_path + '/' + self.get_checked_items()[i]
+                # chargement de l'image
+                img = load_img(path)
+                # conversion en numpy array
+                data = img_to_array(img)
+                contrast = (int(self.le1.text()), int(self.le2.text()))
+                liste = fonctions.contrast(image=data,
+                                           contrast_range=contrast,
+                                           n=int(self.n.text()))
+                for j in liste:
+                    contrasted_images.append(j)
 
-            self.modified(contrasted_images, "Contrast")
+        self.modifiedImages = contrasted_images
+        self.name = "Contrast"
+        self.modified()
 
-    def modified(self, images, name):
+    def modified(self):
+        if self.modifiedOnce:
+            self.message_label.show()
+            self.save_button.show()
+            self.reset_button.show()
+
+            qimg = QImage(self.modifiedImages[0].data, self.modifiedImages[0].shape[1], self.modifiedImages[0].shape[0],
+                          self.modifiedImages[0].shape[1] * 3, QImage.Format_RGB888)
+            qpixmap = QPixmap.fromImage(qimg)
+            label = QLabel(self)
+            label.setPixmap(qpixmap)
+            self.scroll.setWidget(label)
+            self.scroll.show()
+            return
+
         # Ajouter un QLabel pour afficher le message
-        message_label = QLabel("Images modifiées!", self)
-        message_label.setGeometry(150, 520, 580, 30)
-        message_label.show()
+        self.message_label = QLabel("Images modifiées!", self)
+        self.message_label.setGeometry(150, 520, 580, 30)
+        self.message_label.show()
 
         # Ajouter un bouton "Enregistrer"
-        save_button = QPushButton("Enregistrer", self)
-        save_button.setGeometry(10, 520, 100, 30)
-        save_button.clicked.connect(lambda: self.save_images(images, name))
-        save_button.show()
+        self.save_button = QPushButton("Enregistrer", self)
+        self.save_button.setGeometry(10, 520, 100, 30)
+        self.save_button.clicked.connect(lambda: self.save_images())
+        self.save_button.show()
+
+        # Ajout du bouton "Reset"
+        self.reset_button = QPushButton("Reset", self)
+        self.reset_button.setGeometry(490, 520, 100, 30)
+        self.reset_button.clicked.connect(self.on_reset_button_clicked)
+        self.reset_button.show()
+
+        # Création du label pour stocker l'image
+        qimg = QImage(self.modifiedImages[0].data, self.modifiedImages[0].shape[1], self.modifiedImages[0].shape[0],
+                      self.modifiedImages[0].shape[1] * 3, QImage.Format_RGB888)
+        qpixmap = QPixmap.fromImage(qimg)
+        label = QLabel(self)
+        label.setPixmap(qpixmap)
+
+        # Création d'un QScrollArea et y placer le QLabel
+        self.scroll = QScrollArea(self)
+        self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setWidget(label)
+        self.scroll.setGeometry(650, 40, 520, 520)
+        self.scroll.show()
+
+        self.modifiedOnce = True
 
     # Modification du sélecteur de transformation
 
