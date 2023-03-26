@@ -57,7 +57,7 @@ class Interface(QWidget):
         self.reset_button = None
         self.save_button = None
 
-        # Boolean used to know if the selection's widgets already exist
+        # Booléens utilisées pour savoir si les widgets de la sélection existent déjà
         self.shear = False
         self.zoom = False
         self.flip = False
@@ -76,12 +76,10 @@ class Interface(QWidget):
 
     def initUI(self):
 
+        # Création de la fenêtre
         self.setGeometry(300, 300, 1200, 640)
         self.setWindowTitle('Data Augmentation')
         self.setWindowIcon(QIcon('folder_icon.png'))
-
-        # Changer la couleur de fond
-        # self.setStyleSheet("background-color: #242424")
 
         # Ajout d'une liste
         self.list_widget = QListWidget(self)
@@ -261,10 +259,8 @@ class Interface(QWidget):
 
         zoomed_images = []
         if len(self.modifiedImages) > 0:
-            print("test2")
             for i in range(len(self.modifiedImages)):
                 data = self.modifiedImages[i]
-                print(data)
                 liste = fonctions.zoom(image=data,
                                        height_range=(self.sl1.value()[0] / 50 - 1, self.sl1.value()[1] / 50 - 1),
                                        width_range=(self.sl2.value()[0] / 50 - 1, self.sl2.value()[1] / 50 - 1),
@@ -272,7 +268,6 @@ class Interface(QWidget):
                 for j in liste:
                     zoomed_images.append(j)
         else:
-            print("test1")
             for i in range(len(self.get_checked_items())):
                 path = self.folder_path + '/' + self.get_checked_items()[i]
                 # chargement de l'image
@@ -406,7 +401,6 @@ class Interface(QWidget):
 
         shifted_images = []
         if len(self.modifiedImages) > 0:
-            print(len(self.modifiedImages))
             for i in range(len(self.modifiedImages)):
                 data = self.modifiedImages[i]
                 liste = fonctions.shift(image=data,
